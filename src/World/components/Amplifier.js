@@ -20,11 +20,15 @@ export default class Amplifier {
     this.speakerGroup = new THREE.Group()
     this.panelGroup = new THREE.Group()
     this.hardwareGroup = new THREE.Group()
+    this.processorGroup = new THREE.Group()
+    this.cableGroup = new THREE.Group()
     this.mesh.add(
       this.cabinetGroup,
       this.speakerGroup,
       this.panelGroup,
       this.hardwareGroup,
+      this.processorGroup,
+      this.cableGroup,
     )
 
     this.speakerMesh = null
@@ -44,6 +48,8 @@ export default class Amplifier {
     this.createCornerProtectors()
     this.createHandle()
     this.createFeet()
+    this.createProcessor()
+    this.createCable()
   }
 
   createCabinet() {
@@ -333,6 +339,168 @@ export default class Amplifier {
         this.addMesh(foot, this.hardwareGroup)
       }
     }
+  }
+
+  createProcessor() {
+      const processorWidth = 0.9
+      const processorHeight = 0.12
+      const processorDepth = 0.55
+      const processorX = -0.6
+      const processorZ = DEPTH / 2 + 0.8
+
+      this.processorGroup.position.set(processorX, 0, processorZ)
+
+      const metalMaterial = new THREE.MeshStandardMaterial({
+        color: 0x34383d,
+        roughness: 0.3,
+        metalness: 0.8,
+      })
+      const processorBody = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          processorWidth,
+          processorHeight,
+          processorDepth,
+        ),
+        metalMaterial,
+      )
+      processorBody.position.y = processorHeight / 2
+      this.addMesh(processorBody, this.processorGroup)
+
+      const pedal = new THREE.Mesh(
+        new THREE.BoxGeometry(0.32, 0.07, 0.38),
+        new THREE.MeshStandardMaterial({
+          color: 0x17191c,
+          roughness: 0.42,
+          metalness: 0.65,
+        }),
+      )
+      pedal.position.set(0.22, processorHeight + 0.045, 0.04)
+      pedal.rotation.x = -0.2
+      this.addMesh(pedal, this.processorGroup)
+
+      const footswitchMaterial = new THREE.MeshStandardMaterial({
+        color: 0xb8bec4,
+        roughness: 0.24,
+        metalness: 0.85,
+      })
+      for (const x of [-0.25, 0, 0.25]) {
+        const footswitch = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.055, 0.055, 0.035, 20),
+          footswitchMaterial,
+        )
+        footswitch.rotation.x = Math.PI / 2
+        footswitch.position.set(x, processorHeight + 0.025, -0.16)
+        this.addMesh(footswitch, this.processorGroup)
+      }
+
+      const display = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.2, 0.07),
+        new THREE.MeshStandardMaterial({
+          color: 0x49d9ff,
+          emissive: 0x149bc2,
+          emissiveIntensity: 2.5,
+          roughness: 0.25,
+          metalness: 0.1,
+        }),
+      )
+      display.position.set(-0.25, processorHeight + 0.01, 0.12)
+      display.rotation.x = -Math.PI / 2
+      this.addMesh(display, this.processorGroup)
+
+      const jackMaterial = new THREE.MeshStandardMaterial({
+        color: 0x999fa4,
+        roughness: 0.25,
+        metalness: 0.9,
+      })
+      const jackRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.07, 0.014, 12, 24),
+        jackMaterial,
+      )
+      jackRing.rotation.x = Math.PI / 2
+      jackRing.position.set(0, 0.12, -processorDepth / 2 - 0.012)
+      this.addMesh(jackRing, this.processorGroup)
+
+      const processorPlug = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.035, 0.16, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x111111,
+          roughness: 0.6,
+          metalness: 0.2,
+        }),
+      )
+      processorPlug.rotation.x = Math.PI / 2
+      processorPlug.position.set(0, 0.12, -processorDepth / 2 - 0.09)
+      this.addMesh(processorPlug, this.processorGroup)
+    }
+
+    createCable() {
+      const panelY = FOOT_HEIGHT + HEIGHT - WALL - PANEL_H / 2
+      const amplifierPlugPosition = new THREE.Vector3(
+        INNER_W / 2 - 0.08,
+        panelY,
+        FRONT_Z + 0.12,
+      )
+      const processorPosition = this.processorGroup.position
+      const processorPlugPosition = new THREE.Vector3(
+        processorPosition.x,
+        processorPosition.y + 0.12,
+        processorPosition.z - 0.55 / 2 - 0.17,
+      )
+
+      const jackMaterial = new THREE.MeshStandardMaterial({
+        color: 0xaeb4b9,
+        roughness: 0.25,
+        metalness: 0.9,
+      })
+      const amplifierJack = new THREE.Mesh(
+        new THREE.TorusGeometry(0.07, 0.014, 12, 24),
+        jackMaterial,
+      )
+      amplifierJack.rotation.x = Math.PI / 2
+      amplifierJack.position.copy(amplifierPlugPosition)
+      this.addMesh(amplifierJack, this.cableGroup)
+
+      const amplifierPlug = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.035, 0.16, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x111111,
+          roughness: 0.6,
+          metalness: 0.2,
+        }),
+      )
+      amplifierPlug.rotation.x = Math.PI / 2
+      amplifierPlug.position.set(
+        amplifierPlugPosition.x,
+        amplifierPlugPosition.y,
+        amplifierPlugPosition.z + 0.08,
+      )
+      this.addMesh(amplifierPlug, this.cableGroup)
+
+      const curve = new THREE.CatmullRomCurve3([
+        amplifierPlugPosition,
+        new THREE.Vector3(
+          amplifierPlugPosition.x,
+          1.05,
+          amplifierPlugPosition.z + 0.25,
+        ),
+        new THREE.Vector3(0.65, 0.16, 0.95),
+        new THREE.Vector3(0.05, 0.06, 1.28),
+        new THREE.Vector3(
+          processorPlugPosition.x,
+          0.06,
+          processorPlugPosition.z + 0.2,
+        ),
+        processorPlugPosition,
+      ])
+      const cable = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 48, 0.018, 10, false),
+        new THREE.MeshStandardMaterial({
+          color: 0x090909,
+          roughness: 0.72,
+          metalness: 0.05,
+        }),
+      )
+      this.addMesh(cable, this.cableGroup)
   }
 
   addMesh(mesh, targetGroup) {
