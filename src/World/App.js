@@ -1,8 +1,12 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import Amplifier from './components/Amplifier.js'
 import Environment from './components/Environment.js'
+import AudioController from './systems/AudioController.js'
+import Interaction from './systems/Interaction.js'
 import Loop from './systems/Loop.js'
 import Resizer from './systems/Resizer.js'
+import ControlsUI from './UI/ControlsUI.js'
 
 export default class App {
   static instance
@@ -37,8 +41,29 @@ export default class App {
     this.controls.enableDamping = true
 
     this.environment = new Environment(this.scene)
+    this.amplifier = new Amplifier()
+    this.scene.add(this.amplifier.group)
+
+    this.audioController = new AudioController(this.camera)
+    this.interaction = new Interaction(
+      this.camera,
+      this.renderer.domElement,
+      this.amplifier,
+      this.audioController,
+    )
+    this.controlsUI = new ControlsUI(
+      this.amplifier,
+      this.audioController,
+      this.environment,
+    )
     this.resizer = new Resizer(this.camera, this.renderer)
     this.loop = new Loop(this.camera, this.scene, this.renderer, this.controls)
+    this.loop.add(() => {
+      this.amplifier.tick(
+        this.loop.clock.elapsedTime,
+        this.audioController.getFrequency(),
+      )
+    })
 
     App.instance = this
   }

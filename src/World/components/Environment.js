@@ -38,8 +38,8 @@ export default class Environment {
   }
 
   createLights() {
-    const ambientLight = new THREE.AmbientLight(0xffead6, 1.2)
-    this.scene.add(ambientLight)
+    this.ambientLight = new THREE.AmbientLight(0xffead6, 1.2)
+    this.scene.add(this.ambientLight)
 
     const spotLight = new THREE.SpotLight(0xffb36b, 80, 15, Math.PI / 5, 0.5, 1.5)
 
