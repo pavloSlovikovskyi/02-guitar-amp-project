@@ -1,199 +1,364 @@
 import * as THREE from 'three'
 
+const WIDTH = 2.4
+const HEIGHT = 1.8
+const DEPTH = 1.2
+const FOOT_HEIGHT = 0.08
+const WALL = 0.12
+const INNER_W = WIDTH - WALL * 2
+const INNER_H = HEIGHT - WALL * 2
+const FRONT_Z = DEPTH / 2 - 0.08
+const PANEL_H = 0.35
+const GRILL_H = INNER_H - PANEL_H
+
 export default class Amplifier {
   constructor() {
-    this.group = new THREE.Group()
-    this.group.position.y = 1.4
+    this.mesh = new THREE.Group()
+    this.group = this.mesh
+
+    this.cabinetGroup = new THREE.Group()
+    this.speakerGroup = new THREE.Group()
+    this.panelGroup = new THREE.Group()
+    this.hardwareGroup = new THREE.Group()
+    this.mesh.add(
+      this.cabinetGroup,
+      this.speakerGroup,
+      this.panelGroup,
+      this.hardwareGroup,
+    )
+
     this.speakerMesh = null
-    this.ledMesh = null
     this.powerSwitch = null
-    this.bodyMaterial = null
-    this.isPoweredOn = false
-
-    this.createBody()
-    this.createFrontGrille()
-    this.createSpeaker()
-    this.createControlPanel()
-    this.createProtectiveCorners()
-    this.createHandle()
-  }
-
-  createBody() {
-    const geometry = new THREE.BoxGeometry(4, 2.8, 1.8)
+    this.ledMesh = null
+    this.ledLight = null
     this.bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0x161616,
-      roughness: 0.92,
-      metalness: 0.05,
-    })
-
-    this.addMesh(new THREE.Mesh(geometry, this.bodyMaterial))
-  }
-
-  createFrontGrille() {
-    const geometry = new THREE.BoxGeometry(3.65, 1.85, 0.04)
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x090909,
-      roughness: 0.85,
+      color: 0x111111,
+      roughness: 0.75,
       metalness: 0.1,
     })
-    const grille = new THREE.Mesh(geometry, material)
+    this.isPoweredOn = false
 
-    grille.position.set(0, -0.25, 0.93)
-    this.addMesh(grille)
+    this.createCabinet()
+    this.createSpeakerAndGrill()
+    this.createControlPanel()
+    this.createCornerProtectors()
+    this.createHandle()
+    this.createFeet()
   }
 
-  createSpeaker() {
-    const geometry = new THREE.CylinderGeometry(1.25, 1.25, 0.18, 48)
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x292929,
-      roughness: 0.72,
-      metalness: 0.15,
-    })
+  createCabinet() {
+    const frameDepth = DEPTH - WALL
+    const cabinetCenterY = FOOT_HEIGHT + HEIGHT / 2
+    const frameParts = [
+      [WIDTH, WALL, frameDepth, 0, FOOT_HEIGHT + WALL / 2, 0],
+      [WIDTH, WALL, frameDepth, 0, FOOT_HEIGHT + HEIGHT - WALL / 2, 0],
+      [
+        WALL,
+        HEIGHT - WALL * 2,
+        frameDepth,
+        -WIDTH / 2 + WALL / 2,
+        cabinetCenterY,
+        0,
+      ],
+      [
+        WALL,
+        HEIGHT - WALL * 2,
+        frameDepth,
+        WIDTH / 2 - WALL / 2,
+        cabinetCenterY,
+        0,
+      ],
+    ]
 
-    this.speakerMesh = new THREE.Mesh(geometry, material)
-    this.speakerMesh.rotation.x = Math.PI / 2
-    this.speakerMesh.position.set(0, -0.25, 0.9)
-    this.addMesh(this.speakerMesh)
+    for (const [width, height, depth, x, y, z] of frameParts) {
+      const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(width, height, depth),
+        this.bodyMaterial,
+      )
+      frame.position.set(x, y, z)
+      this.addMesh(frame, this.cabinetGroup)
+    }
 
-    const capGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.22, 32)
-    const capMaterial = new THREE.MeshStandardMaterial({
-      color: 0x101010,
-      roughness: 0.7,
-      metalness: 0.2,
-    })
-    const cap = new THREE.Mesh(capGeometry, capMaterial)
+    const back = new THREE.Mesh(
+      new THREE.BoxGeometry(WIDTH, HEIGHT, WALL),
+      this.bodyMaterial,
+    )
+    back.position.set(0, cabinetCenterY, -DEPTH / 2 + WALL / 2)
+    this.addMesh(back, this.cabinetGroup)
 
-    cap.rotation.x = Math.PI / 2
-    cap.position.set(0, -0.25, 1.02)
-    this.addMesh(cap)
+    const cavity = new THREE.Mesh(
+      new THREE.BoxGeometry(INNER_W, INNER_H, WALL / 2),
+      new THREE.MeshStandardMaterial({
+        color: 0x050505,
+        roughness: 0.9,
+        metalness: 0,
+      }),
+    )
+    cavity.position.set(0, cabinetCenterY, FRONT_Z - WALL / 2)
+    this.addMesh(cavity, this.cabinetGroup)
+  }
+
+  createSpeakerAndGrill() {
+    const grillY = FOOT_HEIGHT + WALL + GRILL_H / 2
+    const speakerRadius = GRILL_H * 0.38
+    const speakerZ = FRONT_Z - 0.04
+
+    const grill = new THREE.Mesh(
+      new THREE.PlaneGeometry(INNER_W, GRILL_H),
+      new THREE.MeshStandardMaterial({
+        color: 0x75624d,
+        roughness: 0.58,
+        metalness: 0.02,
+        transparent: true,
+        opacity: 0.65,
+        side: THREE.DoubleSide,
+      }),
+    )
+    grill.position.set(0, grillY, FRONT_Z)
+    this.addMesh(grill, this.speakerGroup)
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(speakerRadius, WALL * 0.18, 16, 48),
+      new THREE.MeshStandardMaterial({
+        color: 0x999999,
+        roughness: 0.3,
+        metalness: 0.8,
+      }),
+    )
+    ring.rotation.x = Math.PI / 2
+    ring.position.set(0, grillY, speakerZ)
+    this.addMesh(ring, this.speakerGroup)
+
+    this.speakerMesh = new THREE.Mesh(
+      new THREE.ConeGeometry(speakerRadius, WALL * 0.45, 48),
+      new THREE.MeshStandardMaterial({
+        color: 0x151515,
+        roughness: 0.72,
+        metalness: 0.12,
+      }),
+    )
+    this.speakerMesh.rotation.x = -Math.PI / 2
+    this.speakerMesh.position.set(0, grillY, speakerZ)
+    this.addMesh(this.speakerMesh, this.speakerGroup)
+
+    const dustCap = new THREE.Mesh(
+      new THREE.SphereGeometry(speakerRadius * 0.26, 24, 12),
+      new THREE.MeshStandardMaterial({
+        color: 0xc4c7ca,
+        roughness: 0.25,
+        metalness: 0.75,
+      }),
+    )
+    dustCap.position.set(0, grillY, speakerZ - WALL * 0.35)
+    this.addMesh(dustCap, this.speakerGroup)
+
+    const logo = new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, 0.05, 0.025),
+      new THREE.MeshStandardMaterial({
+        color: 0xd8d0c1,
+        roughness: 0.25,
+        metalness: 0.8,
+      }),
+    )
+    logo.position.set(
+      -INNER_W / 2 + 0.2,
+      FOOT_HEIGHT + WALL + 0.12,
+      FRONT_Z + 0.015,
+    )
+    this.addMesh(logo, this.speakerGroup)
   }
 
   createControlPanel() {
-    const panelGeometry = new THREE.BoxGeometry(3.65, 0.12, 0.65)
-    const panelMaterial = new THREE.MeshStandardMaterial({
-      color: 0x777777,
-      roughness: 0.35,
-      metalness: 0.8,
+    const panelY = FOOT_HEIGHT + HEIGHT - WALL - PANEL_H / 2
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(INNER_W, PANEL_H, WALL * 0.65),
+      new THREE.MeshStandardMaterial({
+        color: 0xb09570,
+        roughness: 0.25,
+        metalness: 0.85,
+      }),
+    )
+    panel.position.set(0, panelY, FRONT_Z)
+    this.addMesh(panel, this.panelGroup)
+
+    this.panelGroup.position.set(0, panelY, FRONT_Z)
+    panel.position.set(0, 0, 0)
+
+    const baseMaterial = new THREE.MeshStandardMaterial({
+      color: 0x090909,
+      roughness: 0.42,
+      metalness: 0.65,
     })
-    const panel = new THREE.Mesh(panelGeometry, panelMaterial)
-
-    panel.position.set(0, 1.25, 0.15)
-    this.addMesh(panel)
-
-    const knobMaterial = new THREE.MeshStandardMaterial({
-      color: 0x111111,
-      roughness: 0.4,
-      metalness: 0.75,
+    const capMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc7c1b7,
+      roughness: 0.22,
+      metalness: 0.85,
     })
-    const knobPositions = [-1.35, -0.65, 0.05, 0.75]
+    const markerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.3,
+      metalness: 0.2,
+    })
+    const startX = -INNER_W / 2 + 0.35
+    const stepX = (INNER_W * 0.45) / 4
 
-    for (const x of knobPositions) {
-      const knobGeometry = new THREE.CylinderGeometry(0.16, 0.16, 0.18, 24)
-      const knob = new THREE.Mesh(knobGeometry, knobMaterial)
+    for (let i = 0; i < 5; i += 1) {
+      const knobX = startX + i * stepX
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.075, 0.075, 0.05, 24),
+        baseMaterial,
+      )
+      base.rotation.x = Math.PI / 2
+      base.position.set(knobX, 0, 0.02)
+      this.addMesh(base, this.panelGroup)
 
-      knob.position.set(x, 1.42, 0.12)
-      this.addMesh(knob)
+      const cap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.055, 0.035, 24),
+        capMaterial,
+      )
+      cap.rotation.x = Math.PI / 2
+      cap.position.set(knobX, 0, 0.04)
+      this.addMesh(cap, this.panelGroup)
+
+      const marker = new THREE.Mesh(
+        new THREE.BoxGeometry(0.008, 0.035, 0.008),
+        markerMaterial,
+      )
+      marker.position.set(knobX, 0.025, 0.04)
+      this.addMesh(marker, this.panelGroup)
     }
 
-    const switchGeometry = new THREE.BoxGeometry(0.12, 0.3, 0.12)
-    this.powerSwitch = new THREE.Mesh(switchGeometry, knobMaterial)
+    const switchBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.045, 0.02, 16),
+      capMaterial,
+    )
+    switchBase.rotation.x = Math.PI / 2
+    switchBase.position.set(INNER_W / 2 - 0.4, 0, 0.03)
+    this.addMesh(switchBase, this.panelGroup)
 
-    this.powerSwitch.position.set(1.45, 1.47, 0.12)
-    this.powerSwitch.rotation.z = -Math.PI / 8
+    this.powerSwitch = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.014, 0.09, 16),
+      capMaterial,
+    )
+    this.powerSwitch.rotation.x = Math.PI / 2
+    this.powerSwitch.rotation.z = -Math.PI / 7
+    this.powerSwitch.position.set(INNER_W / 2 - 0.4, 0, 0.06)
     this.powerSwitch.userData.isPowerSwitch = true
-    this.addMesh(this.powerSwitch)
+    this.addMesh(this.powerSwitch, this.panelGroup)
 
-    const ledGeometry = new THREE.SphereGeometry(0.07, 16, 16)
-    const ledMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff2200,
-      emissive: 0xff1100,
-      emissiveIntensity: 2,
-      roughness: 0.25,
-    })
-    this.ledMesh = new THREE.Mesh(ledGeometry, ledMaterial)
-
-    this.ledMesh.position.set(1.72, 1.4, 0.12)
-    this.addMesh(this.ledMesh)
+    this.ledMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.045, 20, 12),
+      new THREE.MeshStandardMaterial({
+        color: 0x220000,
+        emissive: 0x110000,
+        emissiveIntensity: 0.05,
+        roughness: 0.2,
+        metalness: 0.15,
+      }),
+    )
+    this.ledMesh.position.set(INNER_W / 2 - 0.18, 0, 0.05)
+    this.addMesh(this.ledMesh, this.panelGroup)
   }
 
-  createProtectiveCorners() {
-    const cornerMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8b8b8b,
+  createCornerProtectors() {
+    const r = 0.06
+    const offsetX = WIDTH / 2 - r
+    const offsetYTop = FOOT_HEIGHT + HEIGHT - r
+    const offsetYBottom = FOOT_HEIGHT + r
+    const offsetZ = DEPTH / 2 - r
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x777777,
       roughness: 0.3,
       metalness: 0.85,
     })
-    const positions = [
-      [-1.82, 1.25, 0.92],
-      [1.82, 1.25, 0.92],
-      [-1.82, -1.25, 0.92],
-      [1.82, -1.25, 0.92],
-    ]
 
-    for (const [x, y, z] of positions) {
-      const corner = new THREE.Mesh(
-        new THREE.BoxGeometry(0.24, 0.24, 0.1),
-        cornerMaterial,
-      )
-
-      corner.position.set(x, y, z)
-      this.addMesh(corner)
+    for (const x of [-offsetX, offsetX]) {
+      for (const y of [offsetYBottom, offsetYTop]) {
+        for (const z of [-offsetZ, offsetZ]) {
+          const corner = new THREE.Mesh(
+            new THREE.SphereGeometry(r, 16, 10),
+            material,
+          )
+          corner.position.set(x, y, z)
+          this.addMesh(corner, this.hardwareGroup)
+        }
+      }
     }
   }
 
   createHandle() {
-    const handleMaterial = new THREE.MeshStandardMaterial({
-      color: 0x181818,
-      roughness: 0.5,
-      metalness: 0.65,
-    })
-    const bar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.1, 1.25, 20),
-      handleMaterial,
+    const mountY = FOOT_HEIGHT + HEIGHT + 0.02
+    const handleY = FOOT_HEIGHT + HEIGHT + 0.06
+    const strap = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.1, 0.08),
+      new THREE.MeshStandardMaterial({
+        color: 0x251611,
+        roughness: 0.8,
+        metalness: 0.05,
+      }),
     )
+    strap.position.set(0, handleY, 0)
+    this.addMesh(strap, this.hardwareGroup)
 
-    bar.rotation.z = Math.PI / 2
-    bar.position.set(0, 1.75, 0)
-    this.addMesh(bar)
-
-    for (const x of [-0.6, 0.6]) {
-      const support = new THREE.Mesh(
-        new THREE.BoxGeometry(0.14, 0.35, 0.14),
-        handleMaterial,
+    const mountMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8e8374,
+      roughness: 0.25,
+      metalness: 0.85,
+    })
+    for (const x of [-0.32, 0.32]) {
+      const mount = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.055, 0.06, 16),
+        mountMaterial,
       )
-
-      support.position.set(x, 1.58, 0)
-      this.addMesh(support)
+      mount.rotation.x = Math.PI / 2
+      mount.position.set(x, mountY, 0)
+      this.addMesh(mount, this.hardwareGroup)
     }
   }
 
-  addMesh(mesh) {
+  createFeet() {
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x121212,
+      roughness: 0.9,
+      metalness: 0,
+    })
+
+    for (const x of [-(WIDTH / 2 - 0.15), WIDTH / 2 - 0.15]) {
+      for (const z of [-(DEPTH / 2 - 0.15), DEPTH / 2 - 0.15]) {
+        const foot = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.07, 0.07, FOOT_HEIGHT, 16),
+          material,
+        )
+        foot.position.set(x, FOOT_HEIGHT / 2, z)
+        this.addMesh(foot, this.hardwareGroup)
+      }
+    }
+  }
+
+  addMesh(mesh, targetGroup) {
     mesh.castShadow = true
     mesh.receiveShadow = true
-    this.group.add(mesh)
+    targetGroup.add(mesh)
   }
 
-  tick(elapsedTime, frequencyData) {
-    if (!this.speakerMesh) {
-      return
+  tick(elapsedTime, frequency) {
+    if (this.speakerMesh) {
+      const freq = frequency || 0
+      const scale = 1 + (freq / 255) * 0.25
+      this.speakerMesh.scale.set(scale, scale, scale)
     }
 
-    const frequency = THREE.MathUtils.clamp(frequencyData, 0, 255)
-    const scaleFactor = 1 + (frequency / 255) * 0.25
-
-    this.speakerMesh.scale.set(scaleFactor, scaleFactor, scaleFactor)
-
     if (this.ledMesh) {
-      const pulse = this.isPoweredOn
+      const intensity = this.isPoweredOn
         ? 1.5 + Math.sin(elapsedTime * 8) * 0.5
         : 0.05
-
       this.ledMesh.material.color.set(
         this.isPoweredOn ? 0xff2200 : 0x220000,
       )
       this.ledMesh.material.emissive.set(
         this.isPoweredOn ? 0xff1100 : 0x110000,
       )
-      this.ledMesh.material.emissiveIntensity = pulse
+      this.ledMesh.material.emissiveIntensity = intensity
     }
   }
 
